@@ -1,0 +1,17 @@
+{
+  "name": "ai-revenue-recovery",
+  "private": true,
+  "version": "0.0.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev:api": "pnpm --filter @recovery/api dev",
+    "dev:web": "pnpm --filter @recovery/web dev",
+    "build": "pnpm --filter @recovery/shared build && pnpm --filter @recovery/api build && pnpm --filter @recovery/web build",
+    "test": "pnpm --filter @recovery/api test",
+    "typecheck": "pnpm --filter @recovery/shared typecheck && pnpm --filter @recovery/api typecheck && pnpm --filter @recovery/web typecheck",
+    "db:generate": "pnpm --filter @recovery/api db:generate",
+    "db:migrate": "pnpm --filter @recovery/api db:migrate"
+  }
+}
