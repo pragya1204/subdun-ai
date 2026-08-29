@@ -29,9 +29,58 @@ export default function ScenarioRunner() {
     mutationFn: () => api.runScenario(form),
   });
 
+  const [rzpAmount, setRzpAmount] = useState(99900);
+  const rzp = useMutation({
+    mutationFn: () => api.createRazorpaySubscription({ amount: rzpAmount }),
+  });
+
   return (
     <div className="max-w-xl">
       <h1 className="mb-4 text-lg font-semibold">Scenario Runner</h1>
+
+      <div className="mb-6 space-y-3 rounded border bg-white p-4">
+        <h2 className="text-sm font-semibold">Razorpay test-mode subscription</h2>
+        <p className="text-xs text-slate-600">
+          Creates a real Razorpay test subscription (requires <code>PROVIDER=razorpay</code>). Open the
+          returned link, authenticate with a test card, then use “Charge this Now → Failure” in the
+          Razorpay dashboard to start a recovery case.
+        </p>
+        <Field label="Amount (paise)">
+          <input
+            type="number"
+            className="w-full rounded border px-2 py-1.5 text-sm"
+            value={rzpAmount}
+            onChange={(e) => setRzpAmount(Number(e.target.value))}
+          />
+        </Field>
+        <button
+          type="button"
+          className="rounded bg-sky-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+          disabled={rzp.isPending}
+          onClick={() => rzp.mutate()}
+        >
+          {rzp.isPending ? "Creating…" : "Create Razorpay subscription"}
+        </button>
+
+        {rzp.isSuccess && (
+          <div className="rounded border border-sky-200 bg-sky-50 p-3 text-sm">
+            <p className="mb-1">
+              Subscription <span className="font-mono text-xs">{rzp.data.razorpay_subscription_id}</span>{" "}
+              (local <span className="font-mono text-xs">{rzp.data.subscription_id}</span>)
+            </p>
+            <a
+              href={rzp.data.short_url}
+              target="_blank"
+              rel="noreferrer"
+              className="font-medium text-sky-700 underline break-all"
+            >
+              {rzp.data.short_url}
+            </a>
+          </div>
+        )}
+        {rzp.isError && <p className="text-sm text-red-600">{(rzp.error as Error).message}</p>}
+      </div>
+
       <form
         className="space-y-4 rounded border bg-white p-4"
         onSubmit={(e) => {

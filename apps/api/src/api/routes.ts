@@ -5,6 +5,7 @@ import { recoveryCases, auditEvents } from "../db/schema.js";
 import { ingestEvent } from "../intake/index.js";
 import { evaluate, manualOverride } from "../orchestrator/index.js";
 import { runScenario } from "../simulator/index.js";
+import { provisionRazorpaySubscription } from "../razorpay/provision.js";
 import { getMetrics } from "../evaluation/index.js";
 import {
   ProviderEventSchema,
@@ -131,6 +132,23 @@ router.post("/simulator/scenarios", async (req, res) => {
     payment_id: paymentId,
     recovery_case_id: caseId?.id ?? null,
   });
+});
+
+// 6b. POST /api/razorpay/subscriptions  (demo helper — only when PROVIDER=razorpay)
+router.post("/razorpay/subscriptions", async (req, res) => {
+  if (process.env.PROVIDER !== "razorpay") {
+    res.status(409).json({ error: "provider_not_razorpay" });
+    return;
+  }
+  try {
+    const result = await provisionRazorpaySubscription({
+      customerId: typeof req.body?.customer_id === "string" ? req.body.customer_id : undefined,
+      amount: typeof req.body?.amount === "number" ? req.body.amount : undefined,
+    });
+    res.status(201).json(result);
+  } catch (err) {
+    res.status(502).json({ error: "razorpay_error", detail: err instanceof Error ? err.message : String(err) });
+  }
 });
 
 // 7. GET /api/evaluation/metrics

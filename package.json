@@ -6,6 +6,7 @@
     "node": ">=20"
   },
   "scripts": {
+    "dev": "pnpm --parallel --filter \"@recovery/api\" --filter \"@recovery/web\" run dev",
     "dev:api": "pnpm --filter @recovery/api dev",
     "dev:web": "pnpm --filter @recovery/web dev",
     "build": "pnpm --filter @recovery/shared build && pnpm --filter @recovery/api build && pnpm --filter @recovery/web build",

@@ -22,6 +22,8 @@ export const subscriptions = pgTable("subscriptions", {
   nextBillingDate: date("next_billing_date").notNull(),
   status: text("status").notNull().default("active"), // active | paused | cancelled
   paymentMethodId: text("payment_method_id").notNull(),
+  provider: text("provider").notNull().default("simulator"), // simulator | razorpay
+  providerRef: text("provider_ref"), // Razorpay subscription id (sub_...) when provider = razorpay
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
@@ -101,6 +103,7 @@ export const outreach = pgTable("outreach", {
   template: text("template").notNull(),
   sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),
   status: text("status").notNull().default("sent"), // sent | delivered | failed
+  providerRef: text("provider_ref"), // Razorpay payment link id (plink_...) when provider = razorpay
   customerResponse: text("customer_response"),
   respondedAt: timestamp("responded_at", { withTimezone: true }),
 }, (t) => ({

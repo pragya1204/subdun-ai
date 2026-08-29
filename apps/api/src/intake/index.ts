@@ -15,6 +15,9 @@ import {
   evaluate,
 } from "../orchestrator/index.js";
 import type { ProviderEvent } from "@recovery/shared";
+import { logger } from "../log.js";
+
+const log = logger("intake");
 
 export interface IngestResult {
   status: "accepted" | "duplicate";
@@ -22,6 +25,7 @@ export interface IngestResult {
 
 /** Receives Simulator events, dedupes, translates to internal commands. */
 export async function ingestEvent(raw: ProviderEvent): Promise<IngestResult> {
+  log(`ingest ${raw.event_type}`, { event_id: raw.event_id });
   const inserted = await db
     .insert(ingestedEvents)
     .values({
@@ -33,24 +37,35 @@ export async function ingestEvent(raw: ProviderEvent): Promise<IngestResult> {
     .returning({ eventId: ingestedEvents.eventId });
 
   if (inserted.length === 0) {
+    log(`duplicate ${raw.event_type}`, { event_id: raw.event_id });
     return { status: "duplicate" };
   }
 
-  await route(raw);
+  try {
+    await route(raw);
+  } catch (e) {
+    log.error(`route(${raw.event_type}) threw`, e instanceof Error ? `${e.message}\n${e.stack}` : e);
+    throw e;
+  }
   return { status: "accepted" };
 }
 
 async function route(raw: ProviderEvent): Promise<void> {
   const payload = raw.payload as Record<string, unknown>;
+  log.debug(`route ${raw.event_type}`, payload);
 
   switch (raw.event_type) {
     case "payment.failed": {
       const subscriptionId = payload.subscription_id as string;
       const paymentId = payload.payment_id as string;
-      const category = normalize({ errorCode: payload.error_code as string | undefined });
+      const category = normalize({
+        errorCode: payload.error_code as string | undefined,
+        errorReason: payload.error_reason as string | undefined,
+      });
 
       const existingCaseId = await findOpenCaseForSubscription(subscriptionId);
       if (existingCaseId) {
+        log(`payment.failed -> append to open case ${existingCaseId}`, { subscription_id: subscriptionId, category });
         await appendFailureToCase({
           caseId: existingCaseId,
           subscriptionId,
@@ -64,6 +79,7 @@ async function route(raw: ProviderEvent): Promise<void> {
           category,
           errorFields: payload,
         });
+        log(`payment.failed -> created case ${caseId}`, { subscription_id: subscriptionId, category });
         await evaluate(caseId);
       }
       return;
@@ -73,6 +89,7 @@ async function route(raw: ProviderEvent): Promise<void> {
       const subscriptionId = payload.subscription_id as string;
       const paymentId = payload.payment_id as string;
       const caseId = await findOpenCaseForSubscription(subscriptionId);
+      log(`payment.success -> ${caseId ? `case ${caseId}` : "no open case"}`, { subscription_id: subscriptionId });
       if (caseId) await handlePaymentSuccess(caseId, paymentId);
       return;
     }

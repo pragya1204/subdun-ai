@@ -83,5 +83,10 @@ export const api = {
       "/simulator/scenarios",
       { method: "POST", body: JSON.stringify(config) }
     ),
+  createRazorpaySubscription: (body: { amount?: number }) =>
+    request<{ subscription_id: string; razorpay_subscription_id: string; short_url: string }>(
+      "/razorpay/subscriptions",
+      { method: "POST", body: JSON.stringify(body) }
+    ),
   getMetrics: () => request<Metrics>("/evaluation/metrics"),
 };

@@ -22,6 +22,9 @@ import {
   type Category,
 } from "@recovery/shared";
 
+import { logger } from "../log.js";
+
+const log = logger("orchestrator");
 const OUTREACH_LIKE = new Set(["OUTREACH", "REQUEST_PAYMENT_METHOD_UPDATE", "REQUEST_CUSTOMER_ACTION"]);
 
 /** Creates a brand-new Recovery Case for a subscription's first open failure. */
@@ -59,6 +62,7 @@ export async function createCase(params: {
     );
   });
 
+  log(`createCase ${caseId}`, { subscription_id: params.subscriptionId, category: params.category });
   return caseId;
 }
 
@@ -96,6 +100,7 @@ export async function findOpenCaseForSubscription(subscriptionId: string): Promi
 
 /** One full evaluation cycle: lock -> context -> Agent -> Policy -> execute -> audit -> project. */
 export async function evaluate(caseId: string): Promise<void> {
+  log(`evaluate ${caseId}`);
   await withCaseLock(caseId, async (tx, kase) => {
     if (isTerminal(kase.status as never)) return;
 
@@ -189,6 +194,10 @@ export async function evaluate(caseId: string): Promise<void> {
       }
     }
 
+    log(`evaluate ${caseId} -> ${proposal.operation}`, {
+      timing: proposal.timing_strategy ?? null,
+      allowed: policyResult.allowed,
+    });
     await dispatch(tx, caseId, kase, proposal, ctx.timing_context.next_billing_date);
   });
 }

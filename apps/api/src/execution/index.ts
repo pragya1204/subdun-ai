@@ -1,7 +1,10 @@
 import { eq } from "drizzle-orm";
 import { recoveryActions, recoveryCases, subscriptions } from "../db/schema.js";
-import { simulatorAdapter } from "../simulator/index.js";
+import { provider } from "../providerPort.js";
 import { send, type InteractionKind } from "../interaction/index.js";
+import { logger } from "../log.js";
+
+const log = logger("execution");
 
 export interface ExecutionResult {
   success: boolean;
@@ -33,18 +36,21 @@ export async function execute(
     });
 
     try {
-      const result = await simulatorAdapter.retryPayment({
+      log(`retryPayment case=${caseId} sub=${kase.subscriptionId} amount=${subscription.amount}`);
+      const result = await provider.retryPayment({
         subscriptionId: kase.subscriptionId,
         amount: subscription.amount,
         paymentMethodId: subscription.paymentMethodId,
       });
+      log(`retryPayment result`, { success: result.success, payment_id: result.paymentId });
       await tx
         .update(recoveryActions)
         .set({ status: "executed", executedAt: new Date(), paymentId: result.paymentId })
         .where(eq(recoveryActions.id, actionId));
       return { success: result.success, paymentId: result.paymentId };
-    } catch {
+    } catch (e) {
       // Infra failure: does not consume retry budget, does not mark executed.
+      log.error("retryPayment threw (infra failure, budget not consumed)", e instanceof Error ? e.message : e);
       return { success: false, failed: true };
     }
   }
@@ -57,7 +63,8 @@ export async function execute(
       .set({ status: "executed", executedAt: new Date() })
       .where(eq(recoveryActions.id, actionId));
     return { success: true, outreachId: record.id };
-  } catch {
+  } catch (e) {
+    log.error(`send(${operation}) threw`, e instanceof Error ? e.message : e);
     return { success: false, failed: true };
   }
 }

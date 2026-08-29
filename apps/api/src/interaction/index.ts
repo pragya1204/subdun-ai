@@ -1,6 +1,9 @@
 import { eq } from "drizzle-orm";
 import { outreach, recoveryCases } from "../db/schema.js";
-import { simulatorAdapter } from "../simulator/index.js";
+import { provider } from "../providerPort.js";
+import { logger } from "../log.js";
+
+const log = logger("interaction");
 
 export type InteractionKind = "OUTREACH" | "REQUEST_PAYMENT_METHOD_UPDATE" | "REQUEST_CUSTOMER_ACTION";
 
@@ -34,13 +37,15 @@ export async function send(caseId: string, kind: InteractionKind, tx: any) {
     })
     .returning();
 
-  const result = await simulatorAdapter.sendMessage({
+  log(`sendMessage case=${caseId} kind=${kind} channel=${channel}`);
+  const result = await provider.sendMessage({
     recoveryCaseId: caseId,
     subscriptionId: kase.subscriptionId,
     kind,
     channel,
     template,
   });
+  log(`sendMessage result`, { delivered: result.delivered });
 
   await tx
     .update(outreach)
